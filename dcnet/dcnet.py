@@ -2,7 +2,7 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
-# from detectron2.data import MetadataCatalog
+from detectron2.data import MetadataCatalog
 from detectron2.modeling import build_backbone, META_ARCH_REGISTRY
 from detectron2.modeling.postprocessing import sem_seg_postprocess
 from detectron2.structures import Boxes, ImageList, Instances
@@ -20,7 +20,10 @@ class DCNet(nn.Module):
         super().__init__()
         self.backbone = build_backbone(cfg)
         self.PCD = pcd(cfg, self.backbone.output_shape())
-        self.ICP = ics(cfg)
+
+        num_classes = len(MetadataCatalog.get(cfg.DATASETS.TRAIN[0]).thing_classes)
+        self.num_classes = num_classes
+        self.ICP = ics(cfg, num_classes=num_classes)
 
         matcher = HungarianMatcher(
             cost_class=cfg.MODEL.DCNET.CLASS_WEIGHT,
@@ -42,7 +45,7 @@ class DCNet(nn.Module):
             weight_dict.update(aux_weight_dict)
 
         self.criterion = SetCriterion(
-            num_classes=1,
+            num_classes=num_classes,
             matcher=matcher,
             weight_dict=weight_dict,
             eos_coef=0.1,
@@ -152,12 +155,11 @@ class DCNet(nn.Module):
 
         # [Q, K]
         scores = F.softmax(mask_cls, dim=-1)[:, :-1]
-        num_classes = 1
-        labels = torch.arange(num_classes, device=self.device).unsqueeze(0).repeat(self.num_queries, 1).flatten(0, 1)
+        labels = torch.arange(self.num_classes, device=self.device).unsqueeze(0).repeat(self.num_queries, 1).flatten(0, 1)
         scores_per_image, topk_indices = scores.flatten(0, 1).topk(self.test_topk_per_image, sorted=False)
         labels_per_image = labels[topk_indices]
 
-        topk_indices = topk_indices // num_classes
+        topk_indices = topk_indices // self.num_classes
         mask_pred = mask_pred[topk_indices]
 
         result = Instances(image_size)
