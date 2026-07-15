@@ -31,10 +31,10 @@ def add_dcnet_config(cfg):
     cfg.MODEL.DCNET.SIZE_DIVISIBILITY = 32
 
 
-    # LSJ aug
-    cfg.INPUT.IMAGE_SIZE = 1024
-    cfg.INPUT.MIN_SCALE = 0.1
-    cfg.INPUT.MAX_SCALE = 2.0
+    # native 432px dataset → 448 (divisible by 32)
+    cfg.INPUT.IMAGE_SIZE = 448
+    cfg.INPUT.MIN_SCALE = 0.8
+    cfg.INPUT.MAX_SCALE = 1.2
 
     # MSDeformAttn  configs
     cfg.MODEL.SEM_SEG_HEAD.DEFORMABLE_TRANSFORMER_ENCODER_N_POINTS = 4
