@@ -1,0 +1,71 @@
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual envs
+.venv/
+venv/
+env/
+.env
+.env.*
+
+# Packaging / install
+build/
+dist/
+*.egg-info/
+*.egg
+.eggs/
+pip-wheel-metadata/
+
+# Test / type / lint caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# IDE / editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs & local run output
+logs/
+output/
+outputs/
+demo/
+wandb/
+*.log
+
+# Checkpoints / weights
+*.pth
+*.pt
+*.pkl
+*.ckpt
+
+# Dataset symlinks / local data (kept on scratch)
+aug_data/
+raw_data/
+data/
+train/
+val/
+test/
+
+# CUDA extension build artifacts
+dcnet/modeling/PCD/ops/build/
+dcnet/modeling/PCD/ops/dist/
+dcnet/modeling/PCD/ops/*.egg-info/

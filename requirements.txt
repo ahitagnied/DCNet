@@ -6,4 +6,4 @@ h5py
 submitit
 scikit-image
 torchvision
-opencv-python
+opencv-pythonwandb

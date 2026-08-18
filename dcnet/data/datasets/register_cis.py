@@ -1,43 +1,62 @@
+import json
 import os
+
+from detectron2.data import DatasetCatalog, MetadataCatalog
 from detectron2.data.datasets.coco import load_coco_json
-from detectron2.data import MetadataCatalog, DatasetCatalog
 
-COD10K_ROOT = '/data1/dataset/COD10K'
-ANN_ROOT = os.path.join(COD10K_ROOT, 'annotations')
-TRAIN_PATH = os.path.join(COD10K_ROOT, 'Train_Image_CAM')
-TEST_PATH = os.path.join(COD10K_ROOT, 'Test_Image_CAM')
-TRAIN_JSON = os.path.join(ANN_ROOT, 'train_instance.json')
-TEST_JSON = os.path.join(ANN_ROOT, 'test2026.json')
+# Unpacked Roboflow COCO export lives directly under scratch/gollum
+ROOT = os.environ.get("GOLLUM_DATA_ROOT", "/scratch/ad158/gollum")
+TRAIN_PATH = os.path.join(ROOT, "train")
+VAL_PATH = os.path.join(ROOT, "valid")
+TEST_PATH = os.path.join(ROOT, "test")
 
-NC4K_ROOT = '/data1/dataset/NC4K/NC4K'
-NC4K_PATH = os.path.join(NC4K_ROOT, 'test/image')
-NC4K_JSON = os.path.join(NC4K_ROOT, 'nc4k_test.json')
+# Drop Roboflow project-name placeholder (no annotations)
+DROP_CATEGORY_NAMES = {"gollum", "Gollum-GM"}
 
-CLASS_NAMES = ["foreground"]
+
+def _filtered_json(json_file: str) -> str:
+    """Write sidecar JSON without dummy categories; return path to load."""
+    out = json_file.replace(".json", ".filtered.json")
+    if os.path.exists(out) and os.path.getmtime(out) >= os.path.getmtime(json_file):
+        return out
+    with open(json_file) as f:
+        data = json.load(f)
+    keep_ids = {
+        c["id"]
+        for c in data["categories"]
+        if c["name"] not in DROP_CATEGORY_NAMES
+    }
+    data["categories"] = [c for c in data["categories"] if c["id"] in keep_ids]
+    data["annotations"] = [
+        a for a in data["annotations"] if a["category_id"] in keep_ids
+    ]
+    with open(out, "w") as f:
+        json.dump(data, f)
+    return out
+
+
+TRAIN_JSON = _filtered_json(os.path.join(TRAIN_PATH, "_annotations.coco.json"))
+VAL_JSON = _filtered_json(os.path.join(VAL_PATH, "_annotations.coco.json"))
+TEST_JSON = _filtered_json(os.path.join(TEST_PATH, "_annotations.coco.json"))
 
 PREDEFINED_SPLITS_DATASET = {
-    "cod10k_train": (TRAIN_PATH, TRAIN_JSON),
-    "cod10k_test": (TEST_PATH, TEST_JSON),
-    "nc4k_test": (NC4K_PATH, NC4K_JSON),
+    "gollum_train": (TRAIN_PATH, TRAIN_JSON),
+    "gollum_val": (VAL_PATH, VAL_JSON),
+    "gollum_test": (TEST_PATH, TEST_JSON),
 }
 
 
 def register_dataset():
-    """
-    purpose: register all splits of dataset with PREDEFINED_SPLITS_DATASET
-    """
     for key, (image_root, json_file) in PREDEFINED_SPLITS_DATASET.items():
-        register_dataset_instances(name=key,
-                                   json_file=json_file,
-                                   image_root=image_root)
+        register_dataset_instances(name=key, json_file=json_file, image_root=image_root)
 
 
 def register_dataset_instances(name, json_file, image_root):
-    """
-    purpose: register dataset to DatasetCatalog,
-             register metadata to MetadataCatalog and set attribute
-    """
-    DatasetCatalog.register(name, lambda: load_coco_json(json_file, image_root, name))
-    MetadataCatalog.get(name).set(json_file=json_file,
-                                  image_root=image_root,
-                                  evaluator_type="coco")
+    DatasetCatalog.register(
+        name, lambda j=json_file, r=image_root, n=name: load_coco_json(j, r, n)
+    )
+    MetadataCatalog.get(name).set(
+        json_file=json_file, image_root=image_root, evaluator_type="coco"
+    )
+    # Populate thing_classes before model build
+    DatasetCatalog.get(name)

@@ -27,20 +27,92 @@ from detectron2.evaluation import (
 )
 from detectron2.projects.deeplab import add_deeplab_config, build_lr_scheduler
 from detectron2.solver.build import maybe_add_gradient_clipping
+from detectron2.utils.events import EventWriter, get_event_storage
 from detectron2.utils.logger import setup_logger
 
 from dcnet import (
-    
     add_dcnet_config,
     register_dataset,
     DatasetMapper_Fourier_amplitude,
 )
+
+logger = logging.getLogger("dcnet")
+
+
+class WandbWriter(EventWriter):
+    """Log Detectron2 EventStorage scalars to Weights & Biases."""
+
+    def __init__(self, window_size: int = 20):
+        self._window_size = window_size
+
+    def write(self):
+        import wandb
+
+        if wandb.run is None:
+            return
+        storage = get_event_storage()
+        stats = {}
+        for k, v in storage.latest_with_smoothing_hint(self._window_size).items():
+            stats[k] = v[0]
+        stats["iter"] = storage.iter
+        wandb.log(stats, step=storage.iter)
+
+    def close(self):
+        import wandb
+
+        if wandb.run is not None:
+            wandb.finish()
 
 
 class Trainer(DefaultTrainer):
     """
     Extension of the Trainer class adapted to DCNet.
     """
+
+    def __init__(self, cfg):
+        # Init W&B before DefaultTrainer builds writers/hooks
+        if comm.is_main_process() and os.environ.get("WANDB", "1") != "0":
+            self._init_wandb(cfg)
+        super().__init__(cfg)
+
+    @staticmethod
+    def _init_wandb(cfg):
+        import wandb
+
+        entity = os.environ.get("WANDB_ENTITY", "ahitagnied-rice-university")
+        project = os.environ.get("WANDB_PROJECT", "gollum-dcnet")
+        name = os.environ.get(
+            "WANDB_NAME",
+            f"gollum-r50-{os.environ.get('SLURM_JOB_ID', 'local')}",
+        )
+        wandb.init(
+            entity=entity,
+            project=project,
+            name=name,
+            config={
+                "OUTPUT_DIR": cfg.OUTPUT_DIR,
+                "SOLVER": {
+                    "IMS_PER_BATCH": cfg.SOLVER.IMS_PER_BATCH,
+                    "BASE_LR": cfg.SOLVER.BASE_LR,
+                    "MAX_ITER": cfg.SOLVER.MAX_ITER,
+                    "STEPS": list(cfg.SOLVER.STEPS),
+                },
+                "MODEL.WEIGHTS": cfg.MODEL.WEIGHTS,
+                "MODEL.DCNET.NUM_OBJECT_QUERIES": cfg.MODEL.DCNET.NUM_OBJECT_QUERIES,
+                "DATASETS.TRAIN": list(cfg.DATASETS.TRAIN),
+                "DATASETS.TEST": list(cfg.DATASETS.TEST),
+                "INPUT.IMAGE_SIZE": cfg.INPUT.IMAGE_SIZE,
+            },
+            sync_tensorboard=False,
+            settings=wandb.Settings(start_method="fork"),
+        )
+        logger.info("W&B run: %s/%s (%s)", entity, project, wandb.run.url)
+
+    def build_writers(self):
+        writers = super().build_writers()
+        if comm.is_main_process() and os.environ.get("WANDB", "1") != "0":
+            writers.append(WandbWriter())
+        return writers
 
     @classmethod
     def build_evaluator(cls, cfg, dataset_name, output_folder=None):
