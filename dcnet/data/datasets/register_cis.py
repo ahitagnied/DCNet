@@ -35,19 +35,30 @@ def _filtered_json(json_file: str) -> str:
     return out
 
 
-TRAIN_JSON = _filtered_json(os.path.join(TRAIN_PATH, "_annotations.coco.json"))
-VAL_JSON = _filtered_json(os.path.join(VAL_PATH, "_annotations.coco.json"))
-TEST_JSON = _filtered_json(os.path.join(TEST_PATH, "_annotations.coco.json"))
+def _splits():
+    """Resolve train/val/test paths lazily — never at import time.
 
-PREDEFINED_SPLITS_DATASET = {
-    "gollum_train": (TRAIN_PATH, TRAIN_JSON),
-    "gollum_val": (VAL_PATH, VAL_JSON),
-    "gollum_test": (TEST_PATH, TEST_JSON),
-}
+    Import-time filesystem access breaks on-device inference (Jetson has no
+    /scratch/... Roboflow tree); training still calls register_dataset().
+    """
+    return {
+        "gollum_train": (
+            TRAIN_PATH,
+            _filtered_json(os.path.join(TRAIN_PATH, "_annotations.coco.json")),
+        ),
+        "gollum_val": (
+            VAL_PATH,
+            _filtered_json(os.path.join(VAL_PATH, "_annotations.coco.json")),
+        ),
+        "gollum_test": (
+            TEST_PATH,
+            _filtered_json(os.path.join(TEST_PATH, "_annotations.coco.json")),
+        ),
+    }
 
 
 def register_dataset():
-    for key, (image_root, json_file) in PREDEFINED_SPLITS_DATASET.items():
+    for key, (image_root, json_file) in _splits().items():
         register_dataset_instances(name=key, json_file=json_file, image_root=image_root)
 
 
