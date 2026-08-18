@@ -60,7 +60,7 @@ wandb/
 # Dataset symlinks / local data (kept on scratch)
 aug_data/
 raw_data/
-data/
+/data/
 train/
 val/
 test/
