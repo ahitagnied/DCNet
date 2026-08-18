@@ -15,20 +15,35 @@ DROP_CATEGORY_NAMES = {"gollum", "Gollum-GM"}
 
 
 def _filtered_json(json_file: str) -> str:
-    """Write sidecar JSON without dummy categories; return path to load."""
+    """Write sidecar JSON without dummy categories; return path to load.
+
+    Also remaps remaining category ids to contiguous 1..K (and rewrites
+    annotation category_id). Detectron2 only builds an id→[0..K) map when ids
+    are *not* already ``1..K``; without that remap, GT labels stay as 1..K while
+    ``num_classes=K``, so class 0 is unused and category K collides with the
+    no-object logit (Aluminium disappeared; every label shifted).
+    """
     out = json_file.replace(".json", ".filtered.json")
     if os.path.exists(out) and os.path.getmtime(out) >= os.path.getmtime(json_file):
         return out
     with open(json_file) as f:
         data = json.load(f)
-    keep_ids = {
-        c["id"]
-        for c in data["categories"]
-        if c["name"] not in DROP_CATEGORY_NAMES
-    }
-    data["categories"] = [c for c in data["categories"] if c["id"] in keep_ids]
+    keep = sorted(
+        (
+            c
+            for c in data["categories"]
+            if c["name"] not in DROP_CATEGORY_NAMES
+        ),
+        key=lambda c: c["id"],
+    )
+    old_to_new = {c["id"]: i + 1 for i, c in enumerate(keep)}
+    data["categories"] = [
+        {**c, "id": old_to_new[c["id"]]} for c in keep
+    ]
     data["annotations"] = [
-        a for a in data["annotations"] if a["category_id"] in keep_ids
+        {**a, "category_id": old_to_new[a["category_id"]]}
+        for a in data["annotations"]
+        if a["category_id"] in old_to_new
     ]
     with open(out, "w") as f:
         json.dump(data, f)
