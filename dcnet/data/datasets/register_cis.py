@@ -6,9 +6,12 @@ from detectron2.data.datasets.coco import load_coco_json
 
 # Unpacked Roboflow COCO export lives directly under scratch/gollum
 ROOT = os.environ.get("GOLLUM_DATA_ROOT", "/scratch/ad158/gollum")
+
 TRAIN_PATH = os.path.join(ROOT, "train")
-VAL_PATH = os.path.join(ROOT, "valid")
-TEST_PATH = os.path.join(ROOT, "test")
+# Roboflow's valid/ split has no Aluminium or Stainless, so valid+test are
+# merged into valtest/ by tools/merge_splits.py and used for both.
+VAL_PATH = os.path.join(ROOT, "valtest")
+TEST_PATH = os.path.join(ROOT, "valtest")
 
 # Drop Roboflow project-name placeholder (no annotations)
 DROP_CATEGORY_NAMES = {"gollum", "Gollum-GM"}

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Train DCNet on Roboflow COCO under GOLLUM_DATA_ROOT (default /scratch/ad158/gollum).
+# Train DCNet on Roboflow COCO under GOLLUM_DATA_ROOT (default gollum-v4).
 #
 #   cd ~/DCNet
 #   sbatch slurm/train.sh
@@ -11,7 +11,7 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=128G
-#SBATCH --time=04:00:00
+#SBATCH --time=12:00:00
 #SBATCH --job-name=dcnet-ft
 # Override GPU type at submit time, e.g.:
 #   sbatch --gres=gpu:h100:1 slurm/train.sh
@@ -34,9 +34,10 @@ source "$VENV/bin/activate"
 TORCH_LIB="$(python -c 'import torch, os; print(os.path.join(os.path.dirname(torch.__file__), "lib"))')"
 export LD_LIBRARY_PATH="${TORCH_LIB}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 
-export GOLLUM_DATA_ROOT="${GOLLUM_DATA_ROOT:-/scratch/ad158/gollum}"
+export GOLLUM_DATA_ROOT="${GOLLUM_DATA_ROOT:-/scratch/ad158/gollum/gollum-v4}"
 DATA_TAG="$(basename "$GOLLUM_DATA_ROOT")"
-OUT_DIR="${OUT_DIR:-${GOLLUM_DATA_ROOT}/output/${DATA_TAG}_r50-${SLURM_JOB_ID}}"
+# Keep checkpoints out of the dataset directory
+OUT_DIR="${OUT_DIR:-/scratch/ad158/gollum/output/${DATA_TAG}_r50-${SLURM_JOB_ID}}"
 mkdir -p "$OUT_DIR"
 
 export TORCH_HOME="${TORCH_HOME:-/scratch/ad158/gollum/.cache/torch}"
@@ -54,7 +55,7 @@ mkdir -p "$WANDB_DIR" "$WANDB_CACHE_DIR"
 NUM_GPUS=1
 
 echo "host=$(hostname) job=${SLURM_JOB_ID} gpus=${CUDA_VISIBLE_DEVICES:-} n=${NUM_GPUS}"
-echo "data=${GOLLUM_DATA_ROOT}"
+echo "data=${GOLLUM_DATA_ROOT} (train/ + valtest/)"
 echo "out=${OUT_DIR}"
 nvidia-smi -L
 
