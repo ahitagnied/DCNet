@@ -26,20 +26,27 @@ DATASETS:
 SOLVER:
   IMS_PER_BATCH: 16
   BASE_LR: 0.0001
-  STEPS: (24000, 28000)
-  MAX_ITER: 30000
+  STEPS: (72000, 84000)
+  MAX_ITER: 90000
   WARMUP_FACTOR: 0.001
   WARMUP_ITERS: 200
   WEIGHT_DECAY: 0.05
   OPTIMIZER: "ADAMW"
   BACKBONE_MULTIPLIER: 0.1
-  CHECKPOINT_PERIOD: 5000
+  CHECKPOINT_PERIOD: 10000
   AMP:
     ENABLED: False
 INPUT:
   IMAGE_SIZE: 448
-  MIN_SCALE: 0.8
-  MAX_SCALE: 1.2
+  # Images are already 448x448 tiles from tools/tile_dataset.py, with ~30% of
+  # instances already truncated at a tile edge. The old 0.8-1.2 LSJ-style
+  # jitter (tuned for full-res, uncut frames) would zoom in and randomly
+  # crop up to ~17% more off an already-cropped tile, frequently cutting the
+  # remaining instance out entirely -- eval uses scale=1 (no crop), so this
+  # mismatch was starving training of consistent supervision. Keep jitter
+  # mild so it doesn't compete with the tiling itself.
+  MIN_SCALE: 0.95
+  MAX_SCALE: 1.05
   FORMAT: "RGB"
 TEST:
   EVAL_PERIOD: 2500
