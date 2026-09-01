@@ -8,13 +8,13 @@ from detectron2.data.datasets.coco import load_coco_json
 # Unlike the earlier gollum-v4 export, this dataset's valid/ and test/ splits
 # each have full class coverage on their own, so they're used directly instead
 # of being merged into a valtest/ split.
-ROOT = os.environ.get("GOLLUM_DATA_ROOT", "/scratch/ad158/gollum-tiled")
+ROOT = os.environ.get("GOLLUM_DATA_ROOT", "/scratch/ad158/gollum-tiled-v8")
 TRAIN_PATH = os.path.join(ROOT, "train")
 VAL_PATH = os.path.join(ROOT, "valid")
 TEST_PATH = os.path.join(ROOT, "test")
 
 # Drop Roboflow project-name placeholder (no annotations)
-DROP_CATEGORY_NAMES = {"gollum", "Gollum-GM"}
+DROP_CATEGORY_NAMES = {"gollum", "Gollum-GM", "ss-al"}
 
 
 def _filtered_json(json_file: str) -> str:

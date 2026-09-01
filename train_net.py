@@ -104,7 +104,6 @@ class Trainer(DefaultTrainer):
                 "INPUT.IMAGE_SIZE": cfg.INPUT.IMAGE_SIZE,
             },
             sync_tensorboard=False,
-            settings=wandb.Settings(start_method="fork"),
         )
         logger.info("W&B run: %s/%s (%s)", entity, project, wandb.run.url)
 

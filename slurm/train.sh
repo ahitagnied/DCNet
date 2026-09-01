@@ -1,5 +1,5 @@
 #!/bin/bash
-# Train DCNet on Roboflow COCO under GOLLUM_DATA_ROOT (default gollum-tiled).
+# Train DCNet on Roboflow COCO under GOLLUM_DATA_ROOT (default gollum-tiled-v8).
 #
 #   cd ~/DCNet
 #   sbatch slurm/train.sh
@@ -34,21 +34,24 @@ source "$VENV/bin/activate"
 TORCH_LIB="$(python -c 'import torch, os; print(os.path.join(os.path.dirname(torch.__file__), "lib"))')"
 export LD_LIBRARY_PATH="${TORCH_LIB}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 
-export GOLLUM_DATA_ROOT="${GOLLUM_DATA_ROOT:-/scratch/ad158/gollum-tiled}"
+export GOLLUM_DATA_ROOT="${GOLLUM_DATA_ROOT:-/scratch/ad158/gollum-tiled-v8}"
 DATA_TAG="$(basename "$GOLLUM_DATA_ROOT")"
-# Keep checkpoints out of the dataset directory
-OUT_DIR="${OUT_DIR:-/scratch/ad158/gollum/output/${DATA_TAG}_r50-${SLURM_JOB_ID}}"
+# Checkpoints live outside /scratch/ad158/gollum: that directory is where the
+# Roboflow zip is re-downloaded and unpacked, and job 234480 died at iter 21k
+# when its output dir was removed mid-run by a re-download.
+RUNS_ROOT="${RUNS_ROOT:-/scratch/ad158/dcnet-runs}"
+OUT_DIR="${OUT_DIR:-${RUNS_ROOT}/${DATA_TAG}_r50-${SLURM_JOB_ID}}"
 mkdir -p "$OUT_DIR"
 
-export TORCH_HOME="${TORCH_HOME:-/scratch/ad158/gollum/.cache/torch}"
-export XDG_CACHE_HOME="${XDG_CACHE_HOME:-/scratch/ad158/gollum/.cache}"
+export TORCH_HOME="${TORCH_HOME:-${RUNS_ROOT}/.cache/torch}"
+export XDG_CACHE_HOME="${XDG_CACHE_HOME:-${RUNS_ROOT}/.cache}"
 mkdir -p "$TORCH_HOME" "$XDG_CACHE_HOME"
 
 # Weights & Biases -> https://wandb.ai/ahitagnied-rice-university/gollum-dcnet
 export WANDB_ENTITY="${WANDB_ENTITY:-ahitagnied-rice-university}"
 export WANDB_PROJECT="${WANDB_PROJECT:-gollum-dcnet}"
 export WANDB_NAME="${WANDB_NAME:-${DATA_TAG}-r50-${SLURM_JOB_ID}}"
-export WANDB_DIR="${WANDB_DIR:-/scratch/ad158/gollum/.cache/wandb}"
+export WANDB_DIR="${WANDB_DIR:-${RUNS_ROOT}/.cache/wandb}"
 export WANDB_CACHE_DIR="${WANDB_CACHE_DIR:-$WANDB_DIR/cache}"
 mkdir -p "$WANDB_DIR" "$WANDB_CACHE_DIR"
 
